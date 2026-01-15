@@ -40,8 +40,8 @@
             <div class="flex items-center gap-4">
                 <label for="endpoint" class="font-medium">Endpoint:</label>
                 <select id="endpoint" class="border rounded-lg px-3 py-2 bg-white shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                    <option value="metaphysical">Metaphysical Lambda</option>
                     <option value="chatbot">Chatbot Lambda</option>
+                    <option value="metaphysical">Metaphysical Lambda</option>
                 </select>
             </div>
         </header>
@@ -83,16 +83,8 @@
         const rawPre = document.getElementById('response-raw');
         const loading = document.getElementById('loading');
 
-        // Payload mặc định cho các Lambda
+        // Payload mặc định
         const defaultPayloads = {
-            metaphysical: {
-                "data": {
-                    "type": "numerology",
-                    "name": "Nguyễn Văn A",
-                    "birthDate": "15/01/1995",
-                    "gender": "Nam"
-                }
-            },
             chatbot: {
                 "user_context": {
                     "name": "Đại Ca",
@@ -102,6 +94,14 @@
                 "data": {
                     "sessionId": "test-session-123",
                     "question": "Chào nha, đại ca! Hôm nay có gì vui không mậy?"
+                }
+            },
+            metaphysical: {
+                "data": {
+                    "type": "numerology",
+                    "name": "Nguyễn Văn A",
+                    "birthDate": "15/01/1995",
+                    "gender": "Nam"
                 }
             }
         };
@@ -118,7 +118,9 @@
             const endpoint = endpointSelect.value;
             const payload = payloadArea.value;
             
-            renderDiv.innerHTML = "";
+            // Reset hiển thị và hiện loading
+            renderDiv.innerHTML = "Đang xử lý...";
+            renderDiv.classList.add('italic', 'text-gray-400');
             rawPre.innerText = "";
             loading.classList.remove('hidden');
 
@@ -131,7 +133,6 @@
                 
                 const data = await response.json();
                 
-                // Parse body nếu Lambda trả về dạng string
                 let finalResult = data;
                 if (data.body && typeof data.body === 'string') {
                     try { finalResult = JSON.parse(data.body); } catch(e) {}
@@ -140,20 +141,23 @@
                 // Hiển thị JSON thô để debug
                 rawPre.innerText = JSON.stringify(finalResult, null, 4);
 
+                // XÓA STYLE CHỜ (italic) TRƯỚC KHI HIỂN THỊ KẾT QUẢ THẬT
+                renderDiv.classList.remove('italic', 'text-gray-400');
+                renderDiv.classList.add('text-gray-800');
+
                 // HIỂN THỊ RENDERED MARKDOWN
                 if (finalResult.reply) {
-                    // Cấu hình marked để xử lý xuống dòng tự nhiên
                     marked.setOptions({ gfm: true, breaks: true });
                     renderDiv.innerHTML = marked.parse(finalResult.reply);
                 } else if (finalResult.interpretation) {
-                    // Dành cho Metaphysical Lambda
                     renderDiv.innerHTML = marked.parse(finalResult.interpretation);
                 } else {
-                    renderDiv.innerHTML = "<span class='text-red-500'>Không tìm thấy trường 'reply' hoặc 'interpretation' trong kết quả.</span>";
+                    renderDiv.innerHTML = "<span class='text-red-500'>Không tìm thấy nội dung trả về.</span>";
                 }
 
             } catch (error) {
-                renderDiv.innerHTML = `<span class="text-red-600 font-bold">Lỗi kết nối Server Local: ${error.message}</span>`;
+                renderDiv.classList.remove('italic', 'text-gray-400');
+                renderDiv.innerHTML = `<span class="text-red-600 font-bold">Lỗi kết nối: ${error.message}</span>`;
             } finally {
                 loading.classList.add('hidden');
             }
