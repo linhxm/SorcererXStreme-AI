@@ -88,7 +88,7 @@ def calculate_zodiac(d: int, m: int) -> str:
 
 def call_bedrock_nova(system: str, user: str) -> str:
     body = json.dumps({
-        "inferenceConfig": {"max_new_tokens": 1000, "temperature": 0.7},
+        "inferenceConfig": {"max_new_tokens": 1000, "temperature": 0.8}, # Tăng nhẹ temp để sáng tạo hơn
         "system": [{"text": system}],
         "messages": [{"role": "user", "content": [{"text": user}]}]
     })
@@ -98,15 +98,13 @@ def call_bedrock_nova(system: str, user: str) -> str:
     except Exception as e: return f"Lỗi kết nối AI: {str(e)}"
 
 def generate_turn_summary(question: str, reply: str) -> str:
-    """Tóm tắt lượt chat để làm bộ nhớ dài hạn (Lưu nội bộ)."""
-    summary_system = "Bạn là trợ lý ghi nhớ. Hãy tóm tắt lượt chat này thành 1 câu cực ngắn (dưới 20 từ) chứa các keyword chính để theo dõi tiến trình hội thoại."
+    summary_system = "Tóm tắt lượt chat này thành 1 câu ngắn gọn (<20 từ) để lưu trữ ngữ cảnh."
     summary_user = f"User: {question}\nAI: {reply}"
     try:
         return call_bedrock_nova(summary_system, summary_user)
-    except: return f"Trao đổi: {question[:30]}"
+    except: return f"Hỏi về {question[:20]}"
 
 def save_turn(session_id: str, question: str, reply: str, summary: str):
-    """Lưu cặp câu hỏi/trả lời và tóm tắt vào một dòng duy nhất."""
     try:
         ddb_table.put_item(Item={
             "sessionId": session_id,
@@ -118,7 +116,6 @@ def save_turn(session_id: str, question: str, reply: str, summary: str):
     except: pass
 
 def load_history(session_id: str) -> str:
-    """Load tối đa 50 lượt chat gần nhất dựa trên summary."""
     try:
         items = ddb_table.query(
             KeyConditionExpression=Key("sessionId").eq(session_id), 
@@ -128,8 +125,8 @@ def load_history(session_id: str) -> str:
         
         history_lines = []
         for h in items[::-1]:
-            txt = h.get('summary') or f"Q: {h.get('question')} - A: {h.get('reply')}"
-            history_lines.append(f"PAST_TURN: {txt}")
+            txt = h.get('summary') or h.get('question')
+            history_lines.append(f"PAST: {txt}")
         return "\n".join(history_lines)
     except: return ""
 
@@ -165,7 +162,7 @@ def lambda_handler(event, context):
     history_text = load_history(session_id)
     
     # 2. Context Preparation
-    context_info = f"- Thời điểm hiện tại: {current_date_str}.\n"
+    context_info = f"- Hôm nay là {current_date_str}.\n"
     rag_keywords = []
     if user_ctx.get("birth_date"):
         dmy = normalize_date(user_ctx["birth_date"])
@@ -175,33 +172,40 @@ def lambda_handler(event, context):
             rag_keywords.extend([f"Số {lp}", f"Cung {zd}"])
     
     if input_cards:
-        context_info += f"- Bài Tarot đã chọn: {', '.join(input_cards)}.\n"
+        context_info += f"- Tarot: {', '.join(input_cards)}.\n"
         rag_keywords.extend(input_cards)
 
     rag_docs = query_pinecone_rag(rag_keywords)
 
-    # 3. System Prompt: Cân đối, Dí dỏm, Khơi gợi & Formatting
+    # 3. System Prompt: Cân bằng, Mirroring & Tự nhiên
     system_prompt = f"""
-# ROLE: SorcererXstreme - Bậc thầy Huyền học thông thái.
-# PHONG CÁCH HỘI THOẠI:
-1. **ĐỘ CÂN ĐỐI:** Trả lời ngắn gọn cho câu hỏi đơn giản, sâu sắc cho các vấn đề tâm linh/cảm xúc.
-2. **TÍNH DÍ DỎM:** Thỉnh thoảng thêm câu đùa duyên dáng (ngẫu nhiên, không lạm dụng).
-3. **KHƠI GỢI:** Đưa ra lời gợi mở hoặc câu hỏi tương tác một cách linh hoạt khi thấy phù hợp.
-4. **NGỮ CẢNH:** Luôn bám sát [HISTORY SUMMARY] để trò chuyện mạch lạc.
+# ROLE: SorcererXstreme - Bậc thầy Huyền học với cá tính linh hoạt.
 
-# QUY TẮC TRÌNH BÀY (BẮT BUỘC):
-- Sử dụng **dòng trống** giữa các đoạn văn để tạo sự thông thoáng, dễ đọc.
-- Sử dụng **bullet points (* hoặc -)** rõ ràng khi liệt kê các ý.
-- Sử dụng **in đậm (bold)** cho các từ khóa quan trọng và *in nghiêng (italic)* để nhấn mạnh cảm xúc.
+# NGUYÊN TẮC HỘI THOẠI (BẮT BUỘC):
+1. **MIRRORING (PHẢN CHIẾU TONE GIỌNG):** - Nếu User nói chuyện nghiêm túc, hãy trả lời sâu sắc và chuẩn mực.
+   - Nếu User đùa kiểu "đấm nhau", "lầy lội" hoặc dùng từ ngữ suồng sã, hãy đáp lại bằng sự dí dỏm, "phũ" một cách duyên dáng hoặc đùa ngược lại tương ứng. Không được quá nghiêm túc khi người dùng đang giỡn.
+
+2. **CẤU TRÚC TỰ NHIÊN:**
+   - KHÔNG sử dụng các nhãn như "Câu đùa:", "Gợi mở:", "Câu hỏi sâu sắc:". Hãy lồng ghép chúng vào dòng chảy tự nhiên của đoạn văn.
+   - Dùng **hai dấu xuống dòng (\n\n)** để phân tách các ý chính, giúp văn bản thoáng nhưng không được làm dụng khiến câu trả lời bị rời rạc.
+
+3. **TÍNH TOÁN CÂN ĐỐI:**
+   - Trả lời đúng trọng tâm. Hỏi ngắn đáp gọn, hỏi sâu đáp kỹ. 
+   - Chỉ khơi gợi thêm khi cảm thấy thực sự cần thiết để kéo dài mạch chuyện, đừng câu nào cũng hỏi lại.
+
+4. **ĐỊNH DẠNG:** - Sử dụng **in đậm** cho từ khóa quan trọng. 
+   - Chỉ dùng danh sách gạch đầu dòng khi cần liệt kê nhiều thông tin kỹ thuật (như ý nghĩa các lá bài hoặc các con số). 
+   - Tránh việc mọi câu trả lời đều là danh sách.
 """
 
     user_prompt = f"""
 [DATA CONTEXT]
 {context_info}
 [KNOWLEDGE BASE]
-{" ".join(rag_docs) if rag_docs else "Kiến thức tổng quát."}
+{" ".join(rag_docs) if rag_docs else "Kiến thức huyền học tổng quát."}
 [HISTORY SUMMARY]
 {history_text}
+
 [USER QUESTION]
 "{question}"
 """
