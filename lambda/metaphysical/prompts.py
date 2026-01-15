@@ -18,7 +18,7 @@ def get_tarot_prompt(feature_type, context_str, user_query, user_context, intent
     # Prompt chung
     base_instruction = f"""
     Hãy xưng hô với người dùng là "{vocative}" (hoặc tên "{user_name}" nếu phù hợp). 
-    Giọng văn cần thấu cảm, nhẹ nhàng nhưng khách quan.
+    Giọng văn cần thấu cảm, nhẹ nhàng nhưng khách quan, một ít pha trò nếu cần thiết (nhưng không quá).
     """
 
     if feature_type == "overview":
@@ -35,7 +35,7 @@ def get_tarot_prompt(feature_type, context_str, user_query, user_context, intent
             --- YÊU CẦU ĐẦU RA (Markdown) ---
             1. **Kết nối logic**: Chỉ ra dòng chảy năng lượng từ quá khứ đến hiện tại.
             2. **Lời khuyên**: Cụ thể cho {vocative}.
-            3. **Giọng văn**: Sâu sắc, chữa lành.
+            3. **Kết luận**: Tóm lược thông điệp và truyền cảm hứng.
             
             Bắt đầu luận giải ngay.""")
     else:

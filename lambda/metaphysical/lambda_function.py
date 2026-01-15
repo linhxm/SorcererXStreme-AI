@@ -301,7 +301,6 @@ def handle_tarot(body):
         if detail_content:
             card_info = f"- {pos_label} Lá bài: {db_entity_name} ({orientation_str})\n  Ý nghĩa ({intent_topic}): {detail_content}"
         else:
-            # Gửi tín hiệu ngầm để LLM tự hiểu cần dùng kiến thức nội tại
             card_info = f"- {pos_label} Lá bài: {db_entity_name} ({orientation_str})"
         context_parts.append(card_info)
         
