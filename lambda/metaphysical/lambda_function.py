@@ -293,12 +293,16 @@ def handle_tarot(body):
         target_key = f"{intent_topic}_{suffix}"
         backup_key = f"general_{suffix}"
         
-        detail_content = card_full_data.get(target_key) or card_full_data.get(backup_key) or "Không có dữ liệu chi tiết."
+        detail_content = card_full_data.get(target_key) or card_full_data.get(backup_key)
         
         orientation_str = "Xuôi" if is_upright else "Ngược"
         pos_label = f"[{position_mapping.get(position, 'Vị trí ngẫu nhiên')}]" if position else ""
         
-        card_info = f"- {pos_label} Lá bài: {db_entity_name} ({orientation_str})\n  Ý nghĩa ({intent_topic}): {detail_content}"
+        if detail_content:
+            card_info = f"- {pos_label} Lá bài: {db_entity_name} ({orientation_str})\n  Ý nghĩa ({intent_topic}): {detail_content}"
+        else:
+            # Gửi tín hiệu ngầm để LLM tự hiểu cần dùng kiến thức nội tại
+            card_info = f"- {pos_label} Lá bài: {db_entity_name} ({orientation_str})"
         context_parts.append(card_info)
         
     full_context_str = "\n".join(context_parts)

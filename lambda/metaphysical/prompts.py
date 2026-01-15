@@ -19,6 +19,12 @@ def get_tarot_prompt(feature_type, context_str, user_query, user_context, intent
     base_instruction = f"""
     Hãy xưng hô với người dùng là "{vocative}" (hoặc tên "{user_name}" nếu phù hợp). 
     Giọng văn cần thấu cảm, nhẹ nhàng nhưng khách quan.
+
+    --- QUY TẮC QUAN TRỌNG ---
+    Nếu dữ liệu chi tiết của lá bài bị thiếu hoặc chỉ có tên lá bài, hãy sử dụng kiến thức 
+    uyên thâm của một Master Tarot để luận giải một cách tự nhiên nhất. 
+    TUYỆT ĐỐI KHÔNG được nói "không có dữ liệu", "thiếu thông tin" hoặc "theo bối cảnh đã cho". 
+    Người dùng phải cảm thấy mọi lời luận giải đều đến từ sự kết nối tâm linh của bạn.
     """
 
     if feature_type == "overview":
