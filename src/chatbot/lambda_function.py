@@ -88,7 +88,7 @@ def calculate_zodiac(d: int, m: int) -> str:
 
 def call_bedrock_nova(system: str, user: str) -> str:
     body = json.dumps({
-        "inferenceConfig": {"max_new_tokens": 1000, "temperature": 0.75},
+        "inferenceConfig": {"max_new_tokens": 1000, "temperature": 0.7},
         "system": [{"text": system}],
         "messages": [{"role": "user", "content": [{"text": user}]}]
     })
@@ -129,47 +129,22 @@ def load_history(session_id: str) -> str:
         history_lines = []
         for h in items[::-1]:
             txt = h.get('summary') or f"Q: {h.get('question')} - A: {h.get('reply')}"
-            history_lines.append(f"CONTEXT_QUÁ_KHỨ: {txt}")
+            history_lines.append(f"PAST_TURN: {txt}")
         return "\n".join(history_lines)
     except: return ""
-
-# =========================
-# V. LOGIC XỬ LÝ
-# =========================
-
-def analyze_intent_and_extract(question: str, input_tarot: List[str]) -> dict:
-    intent = {"explicit_date": None, "has_tarot": False, "tarot_cards": list(input_tarot) if input_tarot else [], "needs_llm": True}
-    date_match = re.search(r'\b(\d{1,2})[/-](\d{1,2})[/-](\d{4})\b', question)
-    if date_match:
-        d, m, y = map(int, [date_match.group(1), date_match.group(2), date_match.group(3)])
-        intent["explicit_date"] = (d, m, y)
-    
-    if not intent["tarot_cards"]:
-        tarot_keywords = ["Fool", "Magician", "Empress", "Emperor", "Lover", "Chariot", "Strength", "Hermit", "Wheel", "Justice", "Hanged", "Death", "Temperance", "Devil", "Tower", "Star", "Moon", "Sun", "Judgement", "World", "Cup", "Wand", "Sword", "Pentacle"]
-        found = [w for w in tarot_keywords if w.lower() in question.lower()]
-        if found: intent["tarot_cards"] = found
-    
-    if intent["tarot_cards"]: intent["has_tarot"] = True
-    if question.strip().lower() in ["hi", "hello", "xin chào", "chào", "bắt đầu"]: intent["needs_llm"] = False
-    return intent
 
 def query_pinecone_rag(keywords: List[str]) -> List[str]:
     if not pc_index or not keywords: return []
     kw = " ".join(list(set(keywords)))
     try:
-        resp = bedrock.invoke_model(
-            modelId=BEDROCK_EMBED_MODEL_ID, 
-            body=json.dumps({"texts": [kw[:2000]], "input_type": "search_query"}), 
-            contentType="application/json"
-        )
+        resp = bedrock.invoke_model(modelId=BEDROCK_EMBED_MODEL_ID, body=json.dumps({"texts": [kw[:2000]], "input_type": "search_query"}), contentType="application/json")
         vector = json.loads(resp["body"].read())["embeddings"][0]
         results = pc_index.query(vector=vector, top_k=3, include_metadata=True)
-        return [f"[{m['metadata'].get('entity_name', '')}]: {m['metadata'].get('context_str', m['metadata'].get('content', ''))}" 
-                for m in results.get('matches', []) if m['score'] >= 0.35]
+        return [f"[{m['metadata'].get('entity_name', '')}]: {m['metadata'].get('context_str', m['metadata'].get('content', ''))}" for m in results.get('matches', []) if m['score'] >= 0.35]
     except: return []
 
 # =========================
-# VI. MAIN HANDLER
+# V. MAIN HANDLER
 # =========================
 
 def lambda_handler(event, context):
@@ -184,20 +159,12 @@ def lambda_handler(event, context):
     if not session_id or (not question and not input_cards):
          return {"statusCode": 400, "body": json.dumps({"error": "Missing sessionId/question"})}
 
-    # 1. Prepare Date & Context
+    # 1. Date & History
     now_vn = get_current_date_vn()
     current_date_str = now_vn.strftime("%d/%m/%Y")
     history_text = load_history(session_id)
     
-    intent = analyze_intent_and_extract(question, input_cards)
-    
-    # 2. Xử lý Chit-chat/Chào hỏi nhanh
-    if not intent["needs_llm"]:
-        reply = "Chào bạn! SorcererXstreme đã sẵn sàng. Hôm nay bạn muốn khám phá điều gì về vận mệnh hay những lá bài?"
-        save_turn(session_id, question, reply, "Chào hỏi khởi đầu")
-        return {"statusCode": 200, "body": json.dumps({"sessionId": session_id, "reply": reply}, ensure_ascii=False)}
-
-    # 3. Phân tích dữ liệu cá nhân (nếu có)
+    # 2. Context Preparation
     context_info = f"- Thời điểm hiện tại: {current_date_str}.\n"
     rag_keywords = []
     if user_ctx.get("birth_date"):
@@ -207,21 +174,25 @@ def lambda_handler(event, context):
             context_info += f"- User: {user_ctx.get('name', 'Bạn')}, Số chủ đạo {lp}, Cung {zd}.\n"
             rag_keywords.extend([f"Số {lp}", f"Cung {zd}"])
     
-    if intent["has_tarot"]:
-        context_info += f"- Bài Tarot: {', '.join(intent['tarot_cards'])}.\n"
-        rag_keywords.extend(intent["tarot_cards"])
+    if input_cards:
+        context_info += f"- Bài Tarot đã chọn: {', '.join(input_cards)}.\n"
+        rag_keywords.extend(input_cards)
 
     rag_docs = query_pinecone_rag(rag_keywords)
 
-    # 4. System Prompt: Cân đối, Dí dỏm ngẫu nhiên & Khơi gợi linh hoạt
+    # 3. System Prompt: Cân đối, Dí dỏm, Khơi gợi & Formatting
     system_prompt = f"""
-# ROLE: SorcererXstreme - Bậc thầy Huyền học thông thái với tư duy sâu sắc như ChatGPT.
+# ROLE: SorcererXstreme - Bậc thầy Huyền học thông thái.
 # PHONG CÁCH HỘI THOẠI:
-1. **ĐỘ CÂN ĐỐI:** - Nếu User hỏi thông tin ngắn (VD: "Mấy giờ rồi?", "Hôm nay ngày gì?"): Trả lời cực kỳ ngắn gọn, trực diện.
-   - Nếu User hỏi về bài Tarot, Tử vi hoặc tâm sự: Trả lời sâu sắc, phân tích logic và có chiều cảm xúc.
-2. **TÍNH DÍ DỎM (NGẪU NHIÊN):** Thỉnh thoảng (tần suất thấp) hãy thêm 1 câu đùa duyên dáng hoặc cách ví von hóm hỉnh để cuộc trò chuyện bớt khô khan. Đừng làm thường xuyên.
-3. **KHƠI GỢI (LINH HOẠT):** Không phải lúc nào cũng hỏi lại. Chỉ đưa ra lời gợi mở hoặc câu hỏi khi thấy câu chuyện cần thêm sự tương tác hoặc ngẫu nhiên để duy trì hứng thú của User.
-4. **NGỮ CẢNH:** Sử dụng [HISTORY SUMMARY] để hiểu những gì đã trao đổi, tránh lặp lại nhàm chán.
+1. **ĐỘ CÂN ĐỐI:** Trả lời ngắn gọn cho câu hỏi đơn giản, sâu sắc cho các vấn đề tâm linh/cảm xúc.
+2. **TÍNH DÍ DỎM:** Thỉnh thoảng thêm câu đùa duyên dáng (ngẫu nhiên, không lạm dụng).
+3. **KHƠI GỢI:** Đưa ra lời gợi mở hoặc câu hỏi tương tác một cách linh hoạt khi thấy phù hợp.
+4. **NGỮ CẢNH:** Luôn bám sát [HISTORY SUMMARY] để trò chuyện mạch lạc.
+
+# QUY TẮC TRÌNH BÀY (BẮT BUỘC):
+- Sử dụng **dòng trống** giữa các đoạn văn để tạo sự thông thoáng, dễ đọc.
+- Sử dụng **bullet points (* hoặc -)** rõ ràng khi liệt kê các ý.
+- Sử dụng **in đậm (bold)** cho các từ khóa quan trọng và *in nghiêng (italic)* để nhấn mạnh cảm xúc.
 """
 
     user_prompt = f"""
@@ -229,14 +200,16 @@ def lambda_handler(event, context):
 {context_info}
 [KNOWLEDGE BASE]
 {" ".join(rag_docs) if rag_docs else "Kiến thức tổng quát."}
-[HISTORY SUMMARY (Max 50 turns)]
+[HISTORY SUMMARY]
 {history_text}
 [USER QUESTION]
 "{question}"
 """
 
-    # 5. Gọi AI và Lưu trữ
+    # 4. AI Response
     reply = call_bedrock_nova(system_prompt, user_prompt)
+
+    # 5. Save & Return
     turn_summary = generate_turn_summary(question, reply)
     save_turn(session_id, question, reply, turn_summary)
 
