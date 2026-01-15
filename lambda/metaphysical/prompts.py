@@ -19,6 +19,7 @@ def get_tarot_prompt(feature_type, context_str, user_query, user_context, intent
     base_instruction = f"""
     Hãy xưng hô với người dùng là "{vocative}" (hoặc tên "{user_name}" nếu phù hợp). 
     Giọng văn cần thấu cảm, nhẹ nhàng nhưng khách quan.
+    """
 
     if feature_type == "overview":
         return textwrap.dedent(f"""\
