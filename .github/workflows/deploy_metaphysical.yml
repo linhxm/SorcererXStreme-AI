@@ -4,7 +4,7 @@ on:
   push:
     branches: [ "main" ]
     paths:
-      - "lambda/metaphysical/**"
+      - "src/metaphysical/**"
       - ".github/workflows/deploy_metaphysical.yml"
 
 jobs:
@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: lambda/metaphysical
+        working-directory: src/metaphysical
 
     steps:
       - name: Checkout code

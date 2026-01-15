@@ -4,7 +4,7 @@ on:
   push:
     branches: [ "main" ]
     paths:
-      - "lambda/chatbot/**"
+      - "src/chatbot/**"
       - ".github/workflows/deploy_chatbot.yml"
 
 jobs:
@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: lambda/chatbot
+        working-directory: src/chatbot
 
     steps:
       - name: Checkout code

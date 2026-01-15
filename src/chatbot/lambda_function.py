@@ -33,7 +33,8 @@ PINECONE_HOST = os.environ.get("PINECONE_HOST")
 # =========================
 # II. GLOBAL CLIENTS
 # =========================
-dynamodb = boto3.resource("dynamodb")
+region = os.environ.get('BEDROCK_REGION', 'ap-southeast-1')
+dynamodb = boto3.resource('dynamodb', region_name=region)
 ddb_table = dynamodb.Table(DDB_MESSAGE_TABLE)
 bedrock = boto3.client("bedrock-runtime")
 

@@ -5,6 +5,12 @@ import sys
 import traceback
 from datetime import datetime
 
+# --- THÊM ĐOẠN NÀY VÀO TRƯỚC CÁC DÒNG IMPORT TỪ FILE KHÁC ---
+# Giúp Python tìm thấy 'prompts.py' và folder 'lasotuvi' khi chạy từ thư mục gốc
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.append(current_dir)
+
 # Import thư viện Tử Vi (Giả định đã có trong Layer hoặc package)
 # Nếu chạy local mà không có folder này sẽ lỗi, nhưng trong môi trường Test chúng ta sẽ Mock nó hoặc chấp nhận lỗi import nếu không test sâu vào hàm library.
 try:

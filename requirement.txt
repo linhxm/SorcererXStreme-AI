@@ -1,0 +1,5 @@
+flask
+flask-cors
+boto3
+pinecone>=3.0.0
+python-dotenv

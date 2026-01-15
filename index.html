@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>SorcererXStreme AI Tester</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .json-editor { font-family: monospace; min-height: 300px; }
+    </style>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-3xl font-bold mb-6 text-indigo-700">SorcererXStreme Local Tester</h1>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="bg-white p-6 rounded-lg shadow">
+                <div class="flex justify-between mb-4">
+                    <h2 class="text-xl font-semibold">Payload (JSON)</h2>
+                    <select id="endpoint" class="border rounded px-2">
+                        <option value="metaphysical">Metaphysical Lambda</option>
+                        <option value="chatbot">Chatbot Lambda</option>
+                    </select>
+                </div>
+                <textarea id="payload" class="w-full border p-4 rounded json-editor text-sm bg-gray-50"></textarea>
+                <button onclick="sendRequest()" id="btnSend" class="mt-4 w-full bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700 transition">
+                    Gửi yêu cầu (Call AWS)
+                </button>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow flex flex-col">
+                <h2 class="text-xl font-semibold mb-4">AI Response</h2>
+                <div id="loading" class="hidden text-orange-500 animate-pulse">Vũ trụ đang xử lý...</div>
+                <div id="response" class="flex-grow overflow-auto bg-gray-900 text-green-400 p-4 rounded text-sm whitespace-pre-wrap"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // PAYLOAD MẶC ĐỊNH
+        const defaultPayloads = {
+            metaphysical: {
+                "domain": "astrology",
+                "feature_type": "overview",
+                "user_context": {
+                    "name": "Thế Anh",
+                    "birth_date": "15-05-1995",
+                    "gender": "Nam"
+                }
+            },
+            chatbot: {
+                "user_context": {
+                    "name": "Thế Anh",
+                    "birth_date": "15-05-1995",
+                    "gender": "Nam",
+                    "birth_time": "08:30"
+                },
+                "data": {
+                    "sessionId": "test-session-123",
+                    "question": "Vận trình sự nghiệp của tôi trong năm nay thế nào?"
+                }
+            }
+        };
+
+        const payloadArea = document.getElementById('payload');
+        const endpointSelect = document.getElementById('endpoint');
+
+        // Khởi tạo giá trị mặc định
+        payloadArea.value = JSON.stringify(defaultPayloads.metaphysical, null, 4);
+
+        endpointSelect.addEventListener('change', (e) => {
+            payloadArea.value = JSON.stringify(defaultPayloads[e.target.value], null, 4);
+        });
+
+        async function sendRequest() {
+            const endpoint = endpointSelect.value;
+            const payload = payloadArea.value;
+            const resDiv = document.getElementById('response');
+            const loading = document.getElementById('loading');
+            
+            resDiv.innerText = "";
+            loading.classList.remove('hidden');
+
+            try {
+                const response = await fetch(`http://127.0.0.1:5000/test/${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: payload
+                });
+                
+                const data = await response.json();
+                
+                // Parse kết quả trả về từ Lambda (trường 'body' thường là string JSON)
+                let finalResult = data;
+                if (data.body && typeof data.body === 'string') {
+                    try { finalResult = JSON.parse(data.body); } catch(e) {}
+                }
+
+                resDiv.innerText = JSON.stringify(finalResult, null, 4);
+            } catch (error) {
+                resDiv.innerText = "Lỗi kết nối Server Local: " + error.message;
+            } finally {
+                loading.classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html>
