@@ -4,7 +4,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 
-# Load biến môi trường từ file .env (nếu có)
+# Load biến môi trường từ file .env
 load_dotenv()
 
 # Thiết lập biến môi trường giống trên Lambda Console
