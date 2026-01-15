@@ -13,7 +13,7 @@ import boto3
 from boto3.dynamodb.conditions import Key
 from pinecone import Pinecone
 
-# Import thư viện Tử Vi (nhe)
+# Import thư viện Tử Vi
 try:
     from lasotuvi import App, DiaBan
     from lasotuvi.AmDuong import diaChi
