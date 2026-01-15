@@ -33,9 +33,14 @@ def get_tarot_prompt(feature_type, context_str, user_query, user_context, intent
             {context_str}
             
             --- YÊU CẦU ĐẦU RA (Markdown) ---
-            1. **Kết nối logic**: Chỉ ra dòng chảy năng lượng từ quá khứ đến hiện tại.
-            2. **Lời khuyên**: Cụ thể cho {vocative}.
-            3. **Kết luận**: Tóm lược thông điệp và truyền cảm hứng.
+            ### 🔗 1. Kết nối logic
+            (Chỉ ra dòng chảy năng lượng từ quá khứ đến hiện tại)
+            
+            ### 💡 2. Lời khuyên cụ thể
+            (Các chỉ dẫn hành động cụ thể dành riêng cho {vocative})
+            
+            ### ✨ 3. Kết luận
+            (Thông điệp tóm lược mang tính sâu sắc, chữa lành và truyền cảm hứng)
             
             Bắt đầu luận giải ngay.""")
     else:
