@@ -2,71 +2,114 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SorcererXStreme AI Tester</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-        .json-editor { font-family: monospace; min-height: 300px; }
+        .json-editor { font-family: monospace; min-height: 400px; }
+        /* Style tùy chỉnh cho nội dung Markdown từ AI */
+        #markdown-content {
+            line-height: 1.7;
+            color: #374151;
+        }
+        #markdown-content p {
+            margin-bottom: 1.25rem;
+        }
+        #markdown-content strong {
+            color: #1e1b4b;
+            font-weight: 700;
+        }
+        #markdown-content ul, #markdown-content ol {
+            margin-bottom: 1rem;
+            padding-left: 1.5rem;
+        }
+        #markdown-content li {
+            margin-bottom: 0.5rem;
+        }
+        #markdown-content em {
+            font-style: italic;
+            color: #4b5563;
+        }
     </style>
 </head>
-<body class="bg-gray-100 p-8">
-    <div class="max-w-6xl mx-auto">
-        <h1 class="text-3xl font-bold mb-6 text-indigo-700">SorcererXStreme Local Tester</h1>
+<body class="bg-gray-100 p-4 md:p-8">
+    <div class="max-w-7xl mx-auto">
+        <header class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-indigo-700">SorcererXStreme Local Tester</h1>
+            <div class="flex items-center gap-4">
+                <label for="endpoint" class="font-medium">Endpoint:</label>
+                <select id="endpoint" class="border rounded-lg px-3 py-2 bg-white shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                    <option value="metaphysical">Metaphysical Lambda</option>
+                    <option value="chatbot">Chatbot Lambda</option>
+                </select>
+            </div>
+        </header>
         
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div class="bg-white p-6 rounded-lg shadow">
-                <div class="flex justify-between mb-4">
-                    <h2 class="text-xl font-semibold">Payload (JSON)</h2>
-                    <select id="endpoint" class="border rounded px-2">
-                        <option value="metaphysical">Metaphysical Lambda</option>
-                        <option value="chatbot">Chatbot Lambda</option>
-                    </select>
-                </div>
-                <textarea id="payload" class="w-full border p-4 rounded json-editor text-sm bg-gray-50"></textarea>
-                <button onclick="sendRequest()" id="btnSend" class="mt-4 w-full bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700 transition">
-                    Gửi yêu cầu (Call AWS)
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200">
+                <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                    <span>Input Payload (JSON)</span>
+                </h2>
+                <textarea id="payload" class="w-full border p-4 rounded-lg json-editor text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-200 outline-none transition-all"></textarea>
+                <button onclick="sendRequest()" id="btnSend" class="mt-4 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg shadow-lg transform active:scale-95 transition-all">
+                    GỬI REQUEST
                 </button>
             </div>
 
-            <div class="bg-white p-6 rounded-lg shadow flex flex-col">
+            <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200 flex flex-col">
                 <h2 class="text-xl font-semibold mb-4">AI Response</h2>
-                <div id="loading" class="hidden text-orange-500 animate-pulse">Vũ trụ đang xử lý...</div>
-                <div id="response" class="flex-grow overflow-auto bg-gray-900 text-green-400 p-4 rounded text-sm whitespace-pre-wrap"></div>
+                
+                <div id="loading" class="hidden flex justify-center items-center py-20">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-700"></div>
+                </div>
+
+                <div id="response-render" class="bg-indigo-50 p-6 rounded-lg border border-indigo-100 min-h-[200px] overflow-auto">
+                    <div id="markdown-content" class="text-gray-400 italic">Kết quả sẽ hiển thị tại đây...</div>
+                </div>
+
+                <details class="mt-4">
+                    <summary class="text-xs text-gray-500 cursor-pointer hover:underline">Xem JSON thô</summary>
+                    <pre id="response-raw" class="mt-2 p-4 bg-gray-900 text-green-400 text-xs rounded-lg overflow-auto max-h-40"></pre>
+                </details>
             </div>
         </div>
     </div>
 
     <script>
-        // PAYLOAD MẶC ĐỊNH
+        const endpointSelect = document.getElementById('endpoint');
+        const payloadArea = document.getElementById('payload');
+        const renderDiv = document.getElementById('markdown-content');
+        const rawPre = document.getElementById('response-raw');
+        const loading = document.getElementById('loading');
+
+        // Payload mặc định cho các Lambda
         const defaultPayloads = {
             metaphysical: {
-                "domain": "astrology",
-                "feature_type": "overview",
-                "user_context": {
-                    "name": "Thế Anh",
-                    "birth_date": "15-05-1995",
+                "data": {
+                    "type": "numerology",
+                    "name": "Nguyễn Văn A",
+                    "birthDate": "15/01/1995",
                     "gender": "Nam"
                 }
             },
             chatbot: {
                 "user_context": {
-                    "name": "Thế Anh",
-                    "birth_date": "15-05-1995",
+                    "name": "Đại Ca",
                     "gender": "Nam",
-                    "birth_time": "08:30"
+                    "birth_date": "15/01/1995"
                 },
                 "data": {
                     "sessionId": "test-session-123",
-                    "question": "Vận trình sự nghiệp của tôi trong năm nay thế nào?"
+                    "question": "Chào nha, đại ca! Hôm nay có gì vui không mậy?"
                 }
             }
         };
 
-        const payloadArea = document.getElementById('payload');
-        const endpointSelect = document.getElementById('endpoint');
+        // Khởi tạo payload ban đầu
+        payloadArea.value = JSON.stringify(defaultPayloads[endpointSelect.value], null, 4);
 
-        // Khởi tạo giá trị mặc định
-        payloadArea.value = JSON.stringify(defaultPayloads.metaphysical, null, 4);
-
+        // Đổi payload khi đổi endpoint
         endpointSelect.addEventListener('change', (e) => {
             payloadArea.value = JSON.stringify(defaultPayloads[e.target.value], null, 4);
         });
@@ -74,10 +117,9 @@
         async function sendRequest() {
             const endpoint = endpointSelect.value;
             const payload = payloadArea.value;
-            const resDiv = document.getElementById('response');
-            const loading = document.getElementById('loading');
             
-            resDiv.innerText = "";
+            renderDiv.innerHTML = "";
+            rawPre.innerText = "";
             loading.classList.remove('hidden');
 
             try {
@@ -89,15 +131,29 @@
                 
                 const data = await response.json();
                 
-                // Parse kết quả trả về từ Lambda (trường 'body' thường là string JSON)
+                // Parse body nếu Lambda trả về dạng string
                 let finalResult = data;
                 if (data.body && typeof data.body === 'string') {
                     try { finalResult = JSON.parse(data.body); } catch(e) {}
                 }
 
-                resDiv.innerText = JSON.stringify(finalResult, null, 4);
+                // Hiển thị JSON thô để debug
+                rawPre.innerText = JSON.stringify(finalResult, null, 4);
+
+                // HIỂN THỊ RENDERED MARKDOWN
+                if (finalResult.reply) {
+                    // Cấu hình marked để xử lý xuống dòng tự nhiên
+                    marked.setOptions({ gfm: true, breaks: true });
+                    renderDiv.innerHTML = marked.parse(finalResult.reply);
+                } else if (finalResult.interpretation) {
+                    // Dành cho Metaphysical Lambda
+                    renderDiv.innerHTML = marked.parse(finalResult.interpretation);
+                } else {
+                    renderDiv.innerHTML = "<span class='text-red-500'>Không tìm thấy trường 'reply' hoặc 'interpretation' trong kết quả.</span>";
+                }
+
             } catch (error) {
-                resDiv.innerText = "Lỗi kết nối Server Local: " + error.message;
+                renderDiv.innerHTML = `<span class="text-red-600 font-bold">Lỗi kết nối Server Local: ${error.message}</span>`;
             } finally {
                 loading.classList.add('hidden');
             }
