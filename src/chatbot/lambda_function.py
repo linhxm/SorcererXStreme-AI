@@ -6,7 +6,7 @@ import random
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Tuple, Optional
 
-# --- [QUAN TRỌNG] THÊM ĐƯỜNG DẪN ĐỂ TÌM THƯ VIỆN CON ---
+# --- [FIX QUAN TRỌNG] THÊM ĐƯỜNG DẪN ĐỂ TÌM THƯ VIỆN CON ---
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 import boto3
@@ -88,7 +88,7 @@ def calculate_zodiac(d: int, m: int) -> str:
 
 def call_bedrock_nova(system: str, user: str) -> str:
     body = json.dumps({
-        "inferenceConfig": {"max_new_tokens": 1000, "temperature": 0.8}, # Tăng temp để câu văn có "muối"
+        "inferenceConfig": {"max_new_tokens": 1000, "temperature": 0.8},
         "system": [{"text": system}],
         "messages": [{"role": "user", "content": [{"text": user}]}]
     })
@@ -98,14 +98,15 @@ def call_bedrock_nova(system: str, user: str) -> str:
     except Exception as e: return f"Lỗi kết nối AI: {str(e)}"
 
 def generate_turn_summary(question: str, reply: str) -> str:
-    summary_system = "Tóm tắt lượt hội thoại này cực ngắn (<20 từ) chỉ gồm keyword chính để AI ghi nhớ ngữ cảnh."
+    """Tóm tắt lượt chat kèm theo 'vibe' cảm xúc để AI câu sau biết đường ứng biến."""
+    summary_system = """Tóm tắt lượt chat này cực ngắn (<25 từ). 
+    YÊU CẦU: Phải bao gồm (1) Nội dung chính và (2) Trạng thái cảm xúc/Tone giọng hiện tại (VD: User đang giỡn nhây, AI đang dứt khoát...)."""
     summary_user = f"User: {question}\nAI: {reply}"
     try:
         return call_bedrock_nova(summary_system, summary_user)
     except: return f"Hỏi: {question[:20]}"
 
 def save_turn(session_id: str, question: str, reply: str, summary: str):
-    """Lưu 1 dòng duy nhất cho cả câu hỏi và câu trả lời."""
     try:
         ddb_table.put_item(Item={
             "sessionId": session_id,
@@ -119,7 +120,7 @@ def save_turn(session_id: str, question: str, reply: str, summary: str):
 def load_history(session_id: str) -> str:
     try:
         items = ddb_table.query(KeyConditionExpression=Key("sessionId").eq(session_id), ScanIndexForward=False, Limit=50).get("Items", [])
-        history_lines = [f"TRƯỚC ĐÓ: {h.get('summary') or h.get('question')}" for h in items[::-1]]
+        history_lines = [f"QUÁ KHỨ ({h.get('summary', 'Trống')})" for h in items[::-1]]
         return "\n".join(history_lines)
     except: return ""
 
@@ -146,46 +147,46 @@ def lambda_handler(event, context):
     session_id, question = data.get("sessionId"), data.get("question") or ""
     input_cards = data.get("tarot_cards", [])
 
-    if not session_id or (not question and not input_cards):
-         return {"statusCode": 400, "body": json.dumps({"error": "Missing sessionId/question"})}
-
     now_vn = get_current_date_vn()
     current_date_str = now_vn.strftime("%d/%m/%Y")
     history_text = load_history(session_id)
     
-    # Context Preparation
-    context_info = f"- Hôm nay: {current_date_str}.\n"
+    # 1. Xác định giới tính và dữ liệu
+    gender = user_ctx.get("gender", "Chưa rõ")
+    context_info = f"- Hôm nay: {current_date_str}.\n- User: {user_ctx.get('name', 'Bạn')}, Giới tính: {gender}.\n"
+    
     rag_keywords = []
     if user_ctx.get("birth_date"):
         dmy = normalize_date(user_ctx["birth_date"])
         if dmy:
             lp, zd = calculate_numerology(*dmy), calculate_zodiac(dmy[0], dmy[1])
-            context_info += f"- User: {user_ctx.get('name', 'Bạn')}, Số {lp}, Cung {zd}.\n"
+            context_info += f"- Số chủ đạo {lp}, Cung {zd}.\n"
             rag_keywords.extend([f"Số {lp}", f"Cung {zd}"])
     
     if input_cards:
-        context_info += f"- Tarot đã bốc: {', '.join(input_cards)}.\n"
+        context_info += f"- Tarot: {', '.join(input_cards)}.\n"
         rag_keywords.extend(input_cards)
 
     rag_docs = query_pinecone_rag(rag_keywords)
 
-    # 3. System Prompt: Bản sắc thực thụ của SorcererXstreme
+    # 2. System Prompt: Đa nhân cách theo Giới tính & Vibe
     system_prompt = f"""
-# ROLE: SorcererXstreme - Một Bậc thầy Huyền học đầy cá tính, thông tuệ nhưng cũng rất "đời".
+# ROLE: SorcererXstreme - Trợ lý Huyền học biết "nhìn mặt gửi lời".
 
-# QUY TẮC VỀ CÁ TÍNH (MIRRORING):
-- Bạn không phải là một cái máy trả lời tự động. Hãy "nhìn mặt" người dùng qua ngôn ngữ của họ.
-- Nếu người dùng đùa kiểu "đấm nhau", cợt nhả hoặc suồng sã, hãy đáp lại bằng sự dí dỏm, đôi khi là một chút "phũ" duyên dáng. 
-- Đừng bao giờ trả lời kiểu "Câu đùa nhẹ nhàng:" hay "Lời gợi mở:". Hãy lồng ghép mọi thứ vào một đoạn văn trôi chảy như đang nhắn tin với bạn bè.
+# TONE GIỌNG THEO GIỚI TÍNH:
+- Nếu User là **Nam**: Hãy trò chuyện mạnh mẽ, dứt khoát, ưu tiên tính logic, thực tế và sòng phẳng.
+- Nếu User là **Nữ**: Hãy trò chuyện nhẹ nhàng, tình cảm, tinh tế, mang tính yêu chiều và thấu cảm cao.
+- Nếu chưa rõ giới tính: Giữ thái độ trung tính, lịch sự.
 
-# QUY TẮC VỀ TRÌNH BÀY (HÀI HÒA):
-- Sử dụng **in đậm** cực kỳ tiết kiệm, chỉ dành cho những từ khóa thực sự đắt giá.
-- Sử dụng **hai dấu xuống dòng (\n\n)** để ngăn cách các ý lớn, giúp văn bản thoáng đãng nhưng không được làm dụng để trông giống như một bản danh sách.
-- Tuyệt đối TRÁNH dùng gạch đầu dòng (bullet points) trừ khi bạn đang giải nghĩa một danh sách các lá bài Tarot phức tạp. Hãy cố gắng viết thành các đoạn văn giàu cảm xúc.
+# DIỄN BIẾN CẢM XÚC (MIRRORING):
+- **Bắt đầu (History trống):** Luôn bắt đầu bằng sự trung tính, nghiêm túc, chuyên nghiệp.
+- **Sau đó:** Dựa vào [HISTORY] và cách User nhắn tin để điều chỉnh cảm xúc. 
+  - Nếu User đùa nhây (mày/tao, đại ca...): Đùa lại tương ứng, "phũ" một cách duyên dáng. 
+  - Nếu User nghiêm túc hoặc buồn: Trở nên thấu cảm, sâu sắc.
 
-# LOGIC PHẢN HỒI:
-- Hỏi ngắn đáp gọn (như hỏi ngày tháng, chào hỏi). Hỏi sâu đáp kỹ (như giải bài, tâm sự).
-- Lâu lâu hãy tung ra một câu đùa hoặc một lời khơi gợi ngẫu nhiên, đừng làm thường xuyên khiến người dùng cảm thấy bị ép buộc.
+# QUY TẮC TRÌNH BÀY:
+- Không dùng nhãn như "Câu đùa:". Viết tự nhiên như nhắn tin.
+- Dùng `\n\n` để phân đoạn thoáng đãng. In đậm từ khóa đắt giá.
 """
 
     user_prompt = f"""
@@ -193,17 +194,17 @@ def lambda_handler(event, context):
 {context_info}
 [KNOWLEDGE BASE]
 {" ".join(rag_docs) if rag_docs else "Kiến thức tổng quát."}
-[HISTORY]
-{history_text}
+[HISTORY & VIBE]
+{history_text if history_text else "Lần đầu trò chuyện - Hãy giữ thái độ trung tính nghiêm túc."}
 
 [USER QUESTION]
 "{question}"
 """
 
-    # 4. AI Response
+    # 3. AI Response
     reply = call_bedrock_nova(system_prompt, user_prompt)
 
-    # 5. Hidden Summary & Save
+    # 4. Hidden Summary & Save
     turn_summary = generate_turn_summary(question, reply)
     save_turn(session_id, question, reply, turn_summary)
 
