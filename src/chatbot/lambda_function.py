@@ -86,7 +86,8 @@ def calculate_zodiac(d: int, m: int) -> str:
 # IV. AI & MEMORY FUNCTIONS
 # =========================
 
-def call_bedrock_nova(system: str, user: str) -> str:
+def call_bedrock_nova(system: str, user: str) -> Tuple[str, int, int]:
+    """Trả về: (Nội dung văn bản, input_tokens, output_tokens)"""
     body = json.dumps({
         "inferenceConfig": {"max_new_tokens": 1000, "temperature": 0.8},
         "system": [{"text": system}],
@@ -94,8 +95,14 @@ def call_bedrock_nova(system: str, user: str) -> str:
     })
     try:
         resp = bedrock.invoke_model(modelId=BEDROCK_LLM_MODEL_ID, body=body, contentType="application/json", accept="application/json")
-        return json.loads(resp["body"].read())["output"]["message"]["content"][0]["text"]
-    except Exception as e: return f"Lỗi kết nối AI: {str(e)}"
+        response_body = json.loads(resp["body"].read())
+        
+        reply_text = response_body["output"]["message"]["content"][0]["text"]
+        # Lấy thông tin sử dụng token từ AWS Bedrock
+        usage = response_body.get("usage", {})
+        return reply_text, usage.get("inputTokens", 0), usage.get("outputTokens", 0)
+    except Exception as e: 
+        return f"Lỗi kết nối AI: {str(e)}", 0, 0
 
 def generate_turn_summary(question: str, reply: str) -> str:
     """Tóm tắt lượt chat kèm theo 'vibe' cảm xúc để AI câu sau biết đường ứng biến."""
@@ -103,17 +110,23 @@ def generate_turn_summary(question: str, reply: str) -> str:
     YÊU CẦU: Phải bao gồm (1) Nội dung chính và (2) Trạng thái cảm xúc/Tone giọng hiện tại (VD: User đang giỡn nhây, AI đang dứt khoát...)."""
     summary_user = f"User: {question}\nAI: {reply}"
     try:
-        return call_bedrock_nova(summary_system, summary_user)
+        # Chỉ lấy phần text, bỏ qua đếm token cho phần tóm tắt nội bộ
+        summary_text, _, _ = call_bedrock_nova(summary_system, summary_user)
+        return summary_text
     except: return f"Hỏi: {question[:20]}"
 
-def save_turn(session_id: str, question: str, reply: str, summary: str):
+def save_turn(session_id: str, question: str, reply: str, summary: str, input_tokens: int = 0, output_tokens: int = 0):
+    """Lưu lượt chat kèm thông tin token vào DynamoDB"""
     try:
         ddb_table.put_item(Item={
             "sessionId": session_id,
             "timestamp": datetime.utcnow().isoformat() + "Z",
             "question": question,
             "reply": reply,
-            "summary": summary
+            "summary": summary,
+            "inputTokens": input_tokens,
+            "outputTokens": output_tokens,
+            "totalTokens": input_tokens + output_tokens
         })
     except: pass
 
@@ -186,7 +199,7 @@ def lambda_handler(event, context):
 
 # QUY TẮC TRÌNH BÀY:
 - Không dùng nhãn như "Câu đùa:". Viết tự nhiên như nhắn tin.
-- Dùng `\n\n` để phân đoạn thoáng đãng. In đậm từ khóa đắt giá.
+- Dùng `\\n\\n` để phân đoạn thoáng đãng. In đậm từ khóa đắt giá.
 """
 
     user_prompt = f"""
@@ -201,15 +214,22 @@ def lambda_handler(event, context):
 "{question}"
 """
 
-    # 3. AI Response
-    reply = call_bedrock_nova(system_prompt, user_prompt)
+    # 3. AI Response - Nhận thêm thông tin token
+    reply, in_tokens, out_tokens = call_bedrock_nova(system_prompt, user_prompt)
 
-    # 4. Hidden Summary & Save
+    # 4. Hidden Summary & Save - Lưu kèm token vào DynamoDB
     turn_summary = generate_turn_summary(question, reply)
-    save_turn(session_id, question, reply, turn_summary)
+    save_turn(session_id, question, reply, turn_summary, in_tokens, out_tokens)
 
     return {
         "statusCode": 200,
         "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
-        "body": json.dumps({"sessionId": session_id, "reply": reply}, ensure_ascii=False)
+        "body": json.dumps({
+            "sessionId": session_id, 
+            "reply": reply,
+            "usage": {
+                "inputTokens": in_tokens,
+                "outputTokens": out_tokens
+            }
+        }, ensure_ascii=False)
     }
