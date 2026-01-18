@@ -26,7 +26,7 @@ except ImportError:
 # I. CONFIGURATION
 # =========================
 DDB_MESSAGE_TABLE = os.environ.get("DDB_MESSAGE_TABLE", "sorcererxstreme-chatMessages")
-BEDROCK_LLM_MODEL_ID = os.environ.get("BEDROCK_LLM_MODEL_ID", "amazon.nova-micro-v1:0")
+BEDROCK_LLM_MODEL_ID = os.environ.get("BEDROCK_LLM_MODEL_ID", "apac.amazon.nova-pro-v1:0")
 BEDROCK_EMBED_MODEL_ID = os.environ.get("BEDROCK_EMBED_MODEL_ID", "cohere.embed-multilingual-v3")
 PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
 PINECONE_HOST = os.environ.get("PINECONE_HOST")
@@ -126,7 +126,7 @@ def save_turn(session_id: str, question: str, reply: str, summary: str, input_to
             "summary": summary,
             "inputTokens": input_tokens,
             "outputTokens": output_tokens,
-            "totalTokens": input_tokens + output_tokens
+            # "totalTokens": input_tokens + output_tokens
         })
     except: pass
 
@@ -184,7 +184,7 @@ def lambda_handler(event, context):
 
     # 2. System Prompt: Đa nhân cách theo Giới tính & Vibe
     system_prompt = f"""
-# ROLE: SorcererXstreme - Trợ lý Huyền học biết "nhìn mặt gửi lời".
+# ROLE: SorcererXstreme - Trợ lý Huyền học, đệ ruột đại sư Văn Linh biết "nhìn mặt gửi lời".
 
 # TONE GIỌNG THEO GIỚI TÍNH:
 - Nếu User là **Nam**: Hãy trò chuyện mạnh mẽ, dứt khoát, ưu tiên tính logic, thực tế và sòng phẳng.

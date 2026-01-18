@@ -2,166 +2,197 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SorcererXStreme AI Tester</title>
+    <title>SorcererXStreme AI - Feature-Specific Tester</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-        .json-editor { font-family: monospace; min-height: 400px; }
-        /* Style tùy chỉnh cho nội dung Markdown từ AI */
-        #markdown-content {
-            line-height: 1.7;
-            color: #374151;
-        }
-        #markdown-content p {
-            margin-bottom: 1.25rem;
-        }
-        #markdown-content strong {
-            color: #1e1b4b;
-            font-weight: 700;
-        }
-        #markdown-content ul, #markdown-content ol {
-            margin-bottom: 1rem;
-            padding-left: 1.5rem;
-        }
-        #markdown-content li {
-            margin-bottom: 0.5rem;
-        }
-        #markdown-content em {
-            font-style: italic;
-            color: #4b5563;
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code&display=swap');
+        .json-editor { font-family: 'Fira Code', monospace; font-size: 13px; }
+        .prose pre { background: #1a1a1a; padding: 1rem; border-radius: 0.5rem; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
     </style>
 </head>
-<body class="bg-gray-100 p-4 md:p-8">
+<body class="bg-slate-900 text-slate-200 p-4">
     <div class="max-w-7xl mx-auto">
-        <header class="flex justify-between items-center mb-6">
-            <h1 class="text-3xl font-bold text-indigo-700">SorcererXStreme Local Tester</h1>
-            <div class="flex items-center gap-4">
-                <label for="endpoint" class="font-medium">Endpoint:</label>
-                <select id="endpoint" class="border rounded-lg px-3 py-2 bg-white shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                    <option value="chatbot">Chatbot Lambda</option>
-                    <option value="metaphysical">Metaphysical Lambda</option>
+        <header class="flex flex-col md:flex-row justify-between items-center mb-6 bg-slate-800 p-4 rounded-xl border border-slate-700 gap-4">
+            <h1 class="text-2xl font-bold text-indigo-400 flex items-center">
+                <span class="mr-2">🔮</span> SorcererXStreme Tester
+            </h1>
+            <div class="flex gap-4 items-center">
+                <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">Chọn Chế độ Test:</label>
+                <select id="mode-select" class="bg-slate-700 border-none rounded px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer">
+                    <option value="metaphysical">🎯 Luận Giải Sâu (Deep-dive)</option>
+                    <option value="chatbot">💬 Chatbot (Conversational)</option>
                 </select>
             </div>
         </header>
-        
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200">
-                <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
-                    <span>Input Payload (JSON)</span>
-                </h2>
-                <textarea id="payload" class="w-full border p-4 rounded-lg json-editor text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-200 outline-none transition-all"></textarea>
-                <button onclick="sendRequest()" id="btnSend" class="mt-4 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg shadow-lg transform active:scale-95 transition-all">
-                    GỬI REQUEST
-                </button>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div class="lg:col-span-3 space-y-4">
+                <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg overflow-y-auto max-h-[80vh]">
+                    <h2 class="text-sm font-bold text-slate-500 uppercase mb-4 border-b border-slate-700 pb-2">Tính năng chi tiết</h2>
+                    <div id="preset-buttons" class="flex flex-col gap-2">
+                        </div>
+                </div>
             </div>
 
-            <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200 flex flex-col">
-                <h2 class="text-xl font-semibold mb-4">AI Response</h2>
-                
-                <div id="loading" class="hidden flex justify-center items-center py-20">
-                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-700"></div>
+            <div class="lg:col-span-9 space-y-6">
+                <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-2xl">
+                    <div class="flex justify-between items-center mb-2">
+                        <label id="current-feature-label" class="text-xs font-bold text-indigo-400 uppercase">Payload Editor</label>
+                        <span id="badge" class="text-[10px] px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-400 font-mono tracking-tighter">READY</span>
+                    </div>
+                    <textarea id="payload-input" class="json-editor w-full bg-slate-900 border border-slate-700 rounded p-4 text-emerald-400 h-64 focus:outline-none focus:border-indigo-500 shadow-inner" spellcheck="false"></textarea>
+                    <button id="send-btn" class="w-full mt-4 bg-indigo-600 hover:bg-indigo-500 py-4 rounded-lg font-bold shadow-lg transition-all active:scale-[0.98]">GỬI YÊU CẦU ĐẾN SERVER</button>
                 </div>
 
-                <div id="response-render" class="bg-indigo-50 p-6 rounded-lg border border-indigo-100 min-h-[200px] overflow-auto">
-                    <div id="markdown-content" class="text-gray-400 italic">Kết quả sẽ hiển thị tại đây...</div>
-                </div>
+                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 min-h-[400px] shadow-xl relative">
+                    <h3 class="text-xl font-bold mb-4 text-indigo-300 flex items-center">
+                        <span class="mr-2">✨</span> Kết quả luận giải
+                    </h3>
 
-                <details class="mt-4">
-                    <summary class="text-xs text-gray-500 cursor-pointer hover:underline">Xem JSON thô</summary>
-                    <pre id="response-raw" class="mt-2 p-4 bg-gray-900 text-green-400 text-xs rounded-lg overflow-auto max-h-40"></pre>
-                </details>
+                    <div id="summary-cont" class="hidden mb-6 grid grid-cols-2 md:grid-cols-4 gap-3 animate-fade-in"></div>
+
+                    <div id="usage-info" class="mb-4 flex gap-4 text-[10px] font-mono text-slate-500 border-b border-slate-700/50 pb-2"></div>
+                    
+                    <div id="ai-output" class="prose prose-invert max-w-none text-slate-300 leading-relaxed">
+                        Chưa có dữ liệu. Hãy chọn một feature-type bên trái và nhấn gửi...
+                    </div>
+
+                    <details class="mt-8 border-t border-slate-700 pt-4">
+                        <summary class="text-xs text-slate-500 cursor-pointer uppercase hover:text-indigo-400 transition-colors">JSON Debugger</summary>
+                        <pre id="json-output" class="text-[11px] mt-2 max-h-64 overflow-auto"></pre>
+                    </details>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        const endpointSelect = document.getElementById('endpoint');
-        const payloadArea = document.getElementById('payload');
-        const renderDiv = document.getElementById('markdown-content');
-        const rawPre = document.getElementById('response-raw');
-        const loading = document.getElementById('loading');
+        const modeSelect = document.getElementById('mode-select');
+        const payloadInput = document.getElementById('payload-input');
+        const presetContainer = document.getElementById('preset-buttons');
+        const summaryCont = document.getElementById('summary-cont');
 
-        // Payload mặc định
-        const defaultPayloads = {
-            chatbot: {
-                "user_context": {
-                    "name": "Đại Ca",
-                    "gender": "Nam",
-                    "birth_date": "15/01/1995"
-                },
-                "data": {
-                    "sessionId": "test-session-123",
-                    "question": "Chào nha, đại ca! Hôm nay có gì vui không mậy?"
-                }
-            },
+        // DANH SÁCH PAYLOAD CHI TIẾT TỪNG FEATURE TYPE
+        const payloads = {
             metaphysical: {
-                "data": {
-                    "type": "numerology",
-                    "name": "Nguyễn Văn A",
-                    "birthDate": "15/01/1995",
-                    "gender": "Nam"
-                }
+                "🃏 Tarot: Hỏi đáp (1 lá)": { "domain": "tarot", "feature_type": "question", "data": { "cards_drawn": [{"card_name": "The Sun", "is_upright": true, "position": "present"}], "question": "Hôm nay có tin vui về tiền bạc không?" }, "user_context": { "name": "Đại ca", "gender": "male" } },
+                "🃏 Tarot: Trải bài (3 lá)": { "domain": "tarot", "feature_type": "overview", "data": { "cards_drawn": [{"card_name": "The Fool", "is_upright": true, "position": "past"}, {"card_name": "The Tower", "is_upright": false, "position": "present"}, {"card_name": "The World", "is_upright": true, "position": "future"}], "question": "Sự nghiệp của tôi trong 3 tháng tới." }, "user_context": { "name": "Đại ca", "gender": "male" } },
+                "🌟 Astro: Tổng quan cung": { "domain": "astrology", "feature_type": "overview", "user_context": { "name": "Hồng", "birth_date": "20/10/1990", "gender": "female" } },
+                "🌟 Astro: Hợp đôi lứa": { "domain": "astrology", "feature_type": "love", "user_context": { "birth_date": "20/10/1990", "gender": "female" }, "partner_context": { "birth_date": "05/02/1988" } },
+                "🔢 Thần số: Số chủ đạo": { "domain": "numerology", "user_context": { "birth_date": "12/12/1995", "gender": "male" } },
+                "📜 Tử vi: Lập lá số": { "domain": "horoscope", "user_context": { "name": "Văn Linh", "birth_date": "15/05/1992", "birth_time": "08:30", "gender": "male" } }
+            },
+            chatbot: {
+                "💬 Chat: Nhây/Vibe Nam": { "user_context": { "name": "Thế Anh", "gender": "Nam", "birth_date": "15/01/1995" }, "data": { "sessionId": "session-dev-001", "question": "Chào nha mậy, đại ca Văn Linh đâu rồi?" } },
+                "💬 Chat: Tâm tình Nữ": { "user_context": { "name": "Chị đẹp", "gender": "Nữ", "birth_date": "20/10/1990" }, "data": { "sessionId": "session-dev-002", "question": "Mình đang thấy khá áp lực, bạn cho lời khuyên nhé." } },
+                "💬 Chat: Hỏi huyền học": { "user_context": { "name": "Ẩn danh", "gender": "Khác" }, "data": { "sessionId": "session-dev-003", "question": "Lá bài The Moon trong Tarot có ý nghĩa gì khi hỏi về sự lừa dối?" } }
             }
         };
 
-        // Khởi tạo payload ban đầu
-        payloadArea.value = JSON.stringify(defaultPayloads[endpointSelect.value], null, 4);
-
-        // Đổi payload khi đổi endpoint
-        endpointSelect.addEventListener('change', (e) => {
-            payloadArea.value = JSON.stringify(defaultPayloads[e.target.value], null, 4);
-        });
-
-        async function sendRequest() {
-            const endpoint = endpointSelect.value;
-            const payload = payloadArea.value;
+        function updatePresets() {
+            const mode = modeSelect.value;
+            presetContainer.innerHTML = '';
             
-            // Reset hiển thị và hiện loading
-            renderDiv.innerHTML = "Đang xử lý...";
-            renderDiv.classList.add('italic', 'text-gray-400');
-            rawPre.innerText = "";
-            loading.classList.remove('hidden');
+            Object.keys(payloads[mode]).forEach(key => {
+                const btn = document.createElement('button');
+                btn.className = "bg-slate-700 hover:bg-indigo-600 p-3 rounded text-[11px] text-left transition-all border border-slate-600 hover:border-indigo-400 font-medium group flex justify-between items-center";
+                btn.innerHTML = `<span>${key}</span> <span class="opacity-0 group-hover:opacity-100 transition">→</span>`;
+                
+                btn.onclick = () => {
+                    payloadInput.value = JSON.stringify(payloads[mode][key], null, 4);
+                    document.getElementById('badge').innerText = mode.toUpperCase();
+                    document.getElementById('current-feature-label').innerText = key;
+                };
+                presetContainer.appendChild(btn);
+            });
 
+            // Load payload đầu tiên mặc định
+            const firstKey = Object.keys(payloads[mode])[0];
+            payloadInput.value = JSON.stringify(payloads[mode][firstKey], null, 4);
+            document.getElementById('badge').innerText = mode.toUpperCase();
+            document.getElementById('current-feature-label').innerText = firstKey;
+        }
+
+        modeSelect.onchange = updatePresets;
+        updatePresets();
+
+        document.getElementById('send-btn').onclick = async () => {
+            const output = document.getElementById('ai-output');
+            const jsonOut = document.getElementById('json-output');
+            const usageOut = document.getElementById('usage-info');
+            const mode = modeSelect.value;
+            
+            output.innerHTML = "<div class='flex items-center text-indigo-400'><svg class='animate-spin h-5 w-5 mr-3 border-2 border-indigo-500 border-t-transparent rounded-full' viewBox='0 0 24 24'></svg> 🔮 Đang giải mã năng lượng...</div>";
+            summaryCont.classList.add('hidden');
+            summaryCont.innerHTML = '';
+            
             try {
-                const response = await fetch(`http://127.0.0.1:5000/test/${endpoint}`, {
+                const response = await fetch(`http://127.0.0.1:5000/test/${mode}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: payload
+                    body: payloadInput.value
                 });
                 
                 const data = await response.json();
+                jsonOut.innerText = JSON.stringify(data, null, 4);
+
+                let result = data;
+                if (data.body) result = typeof data.body === 'string' ? JSON.parse(data.body) : data.body;
+
+                // XỬ LÝ KẾT QUẢ ĐỂ KHÔNG BỊ LỖI MARKED([OBJECT OBJECT])
+                let textToParse = "";
                 
-                let finalResult = data;
-                if (data.body && typeof data.body === 'string') {
-                    try { finalResult = JSON.parse(data.body); } catch(e) {}
+                if (result.reply) {
+                    // Cấu trúc của Chatbot
+                    textToParse = result.reply;
+                } else if (result.answer) {
+                    // Cấu trúc của Metaphysical
+                    if (typeof result.answer === 'object' && result.answer !== null) {
+                        // Trường hợp đặc biệt: Tử Vi (Horoscope)
+                        textToParse = result.answer.analysis || "";
+                        
+                        if (result.answer.summary) {
+                            summaryCont.classList.remove('hidden');
+                            const s = result.answer.summary;
+                            const items = [
+                                { l: "Can Chi", v: s.can_chi },
+                                { l: "Bản Mệnh", v: s.ban_menh || s.menh },
+                                { l: "Cục", v: s.cuc },
+                                { l: "Mệnh Chủ", v: s.menh_chu }
+                            ];
+                            summaryCont.innerHTML = items.filter(i => i.v).map(i => `
+                                <div class="bg-slate-700/50 p-2 rounded border border-slate-600 shadow-sm">
+                                    <p class="text-[9px] text-slate-500 uppercase font-black">${i.l}</p>
+                                    <p class="text-xs text-indigo-300 font-bold">${i.v}</p>
+                                </div>
+                            `).join('');
+                        }
+                    } else {
+                        // Tarot, Thần số, Chiêm tinh (dạng String)
+                        textToParse = result.answer;
+                    }
                 }
 
-                // Hiển thị JSON thô để debug
-                rawPre.innerText = JSON.stringify(finalResult, null, 4);
+                // XỬ LÝ HIỂN THỊ TOKEN
+                const usage = result.usage || {};
+                const inTok = usage.inputTokens || usage.input_tokens || 0;
+                const outTok = usage.outputTokens || usage.output_tokens || 0;
 
-                // XÓA STYLE CHỜ (italic) TRƯỚC KHI HIỂN THỊ KẾT QUẢ THẬT
-                renderDiv.classList.remove('italic', 'text-gray-400');
-                renderDiv.classList.add('text-gray-800');
+                if (inTok > 0 || outTok > 0) {
+                    usageOut.innerHTML = `<span>📥 Input: <b>${inTok}</b></span> <span>📤 Output: <b>${outTok}</b></span>`;
+                } else { usageOut.innerText = ""; }
 
-                // HIỂN THỊ RENDERED MARKDOWN
-                if (finalResult.reply) {
-                    marked.setOptions({ gfm: true, breaks: true });
-                    renderDiv.innerHTML = marked.parse(finalResult.reply);
-                } else if (finalResult.interpretation) {
-                    renderDiv.innerHTML = marked.parse(finalResult.interpretation);
-                } else {
-                    renderDiv.innerHTML = "<span class='text-red-500'>Không tìm thấy nội dung trả về.</span>";
-                }
+                // RENDER
+                output.innerHTML = marked.parse(String(textToParse || "Vũ trụ không có phản hồi."));
 
-            } catch (error) {
-                renderDiv.classList.remove('italic', 'text-gray-400');
-                renderDiv.innerHTML = `<span class="text-red-600 font-bold">Lỗi kết nối: ${error.message}</span>`;
-            } finally {
-                loading.classList.add('hidden');
+            } catch (e) {
+                output.innerHTML = `<div class="bg-red-900/20 border border-red-500/50 p-4 rounded text-red-400">❌ <b>Lỗi:</b> ${e.message}</div>`;
             }
-        }
+        };
     </script>
 </body>
 </html>
