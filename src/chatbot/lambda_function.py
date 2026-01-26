@@ -51,7 +51,8 @@ if PINECONE_API_KEY and PINECONE_HOST:
 # III. CALCULATION ENGINES
 # =========================
 
-def get_current_date_vn():
+def get_current_time_vn():
+    """Lấy thời gian hiện tại Việt Nam (GMT+7)"""
     return datetime.now(timezone(timedelta(hours=7)))
 
 def normalize_date(date_str: str) -> Optional[Tuple[int, int, int]]:
@@ -160,13 +161,16 @@ def lambda_handler(event, context):
     session_id, question = data.get("sessionId"), data.get("question") or ""
     input_cards = data.get("tarot_cards", [])
 
-    now_vn = get_current_date_vn()
-    current_date_str = now_vn.strftime("%d/%m/%Y")
+    # Lấy thời gian thực Việt Nam
+    now_vn = get_current_time_vn()
+    time_vn_str = now_vn.strftime("%H:%M:%S ngày %d/%m/%Y")
+
+    # Xây dựng bối cảnh cho AI
+    context_info = (
+        f"BÂY GIỜ LÀ: {time_vn_str} (Giờ Việt Nam GMT+7).\n"
+        f"NGƯỜI DÙNG: {user_ctx.get('name', 'Bạn')}, GIỚI TÍNH: {user_ctx.get('gender', 'Chưa rõ')}.\n"
+    )
     history_text = load_history(session_id)
-    
-    # 1. Xác định giới tính và dữ liệu
-    gender = user_ctx.get("gender", "Chưa rõ")
-    context_info = f"- Hôm nay: {current_date_str}.\n- User: {user_ctx.get('name', 'Bạn')}, Giới tính: {gender}.\n"
     
     rag_keywords = []
     if user_ctx.get("birth_date"):
@@ -184,7 +188,8 @@ def lambda_handler(event, context):
 
     # 2. System Prompt: Đa nhân cách theo Giới tính & Vibe
     system_prompt = f"""
-# ROLE: SorcererXstreme - Trợ lý Huyền học, đệ ruột đại sư Văn Linh biết "nhìn mặt gửi lời".
+# ROLE: SorcererXstreme 
+- Trợ lý Huyền học, đệ ruột đại sư Văn Linh biết "nhìn mặt gửi lời".
 
 # TONE GIỌNG THEO GIỚI TÍNH:
 - Nếu User là **Nam**: Hãy trò chuyện mạnh mẽ, dứt khoát, ưu tiên tính logic, thực tế và sòng phẳng.
@@ -199,7 +204,7 @@ def lambda_handler(event, context):
 
 # QUY TẮC TRÌNH BÀY:
 - Không dùng nhãn như "Câu đùa:". Viết tự nhiên như nhắn tin.
-- Dùng `\\n\\n` để phân đoạn thoáng đãng. In đậm từ khóa đắt giá.
+- In đậm từ khóa đắt giá.
 """
 
     user_prompt = f"""

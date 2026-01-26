@@ -4,7 +4,7 @@ import os
 import sys
 import traceback
 import hashlib
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 # --- 1. THIẾT LẬP ĐƯỜNG DẪN & IMPORT ---
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -45,6 +45,10 @@ table_cache = dynamodb.Table(CACHE_TABLE)
 # 3. CORE HELPER FUNCTIONS
 # ==========================================
 
+def get_current_time_vn():
+    """Lấy đối tượng datetime hiện tại theo múi giờ Việt Nam (GMT+7)"""
+    return datetime.now(timezone.utc) + timedelta(hours=7)
+
 def parse_date(date_str):
     if not date_str: return None
     s = str(date_str).replace('–', '-').replace('—', '-').replace('.', '-').replace('/', '-')
@@ -84,7 +88,7 @@ def call_bedrock_llm(prompt, temperature=0.6):
         return "Vũ trụ đang bận hiệu chỉnh năng lượng.", 0, 0
 
 # ==========================================
-# 4. DOMAIN LOGIC (KHÔI PHỤC HOÀN TOÀN BẢN CŨ)
+# 4. DOMAIN LOGIC
 # ==========================================
 
 # --- CHIÊM TINH (ASTROLOGY) ---
@@ -211,6 +215,9 @@ def handle_tarot(body):
     if not cards_input:
         return "Vui lòng chọn lá bài."
 
+    vn_now = get_current_time_vn()
+    time_str = vn_now.strftime("%H:%M:%S ngày %d/%m/%Y")
+
     # 2. Nhận diện chủ đề (Intent Topic) - Đã mở rộng từ khóa
     intent_topic = "general"
     if user_query:
@@ -231,8 +238,12 @@ def handle_tarot(body):
         "future": "Tương lai / Kết quả"
     }
     
-    context_parts = [f"Chủ đề: {intent_topic.upper()}", f"Câu hỏi: {user_query}"]
-
+    context_parts = [
+        f"THỜI GIAN HIỆN TẠI (GMT+7): {time_str}",
+        f"Chủ đề: {intent_topic.upper()}", 
+        f"Câu hỏi: {user_query}"
+    ]
+    
     # 4. Xử lý logic lá bài và RAG (Cập nhật cơ chế Backup)
     for card in cards_input:
         # Chuẩn hóa tên lá bài (ví dụ: "the fool" -> "The Fool")
@@ -265,7 +276,7 @@ def handle_tarot(body):
     try:
         table_tarot_log.put_item(Item={
             "userId": data.get("userId", "anon"), 
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "question": user_query, 
             "answer": ans, 
             "input_tokens": in_t, 

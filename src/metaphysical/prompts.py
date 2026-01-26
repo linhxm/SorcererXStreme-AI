@@ -4,10 +4,10 @@ def get_vocative(gender):
     """
     Chuyển đổi giới tính thành đại từ nhân xưng phù hợp.
     """
-    if not gender: return "Bạn"
+    if not gender: return "bạn"
     g = gender.lower().strip()
-    if g in ['male', 'nam', 'm', 'trai']: return "Anh"
-    if g in ['female', 'nu', 'nữ', 'f', 'gái']: return "Chị"
+    if g in ['male', 'nam', 'm', 'trai']: return "anh"
+    if g in ['female', 'nu', 'nữ', 'f', 'gái']: return "chị"
     return "Bạn"
 
 def get_tarot_prompt(feature_type, context_str, user_query, user_context, intent_topic="general"):
