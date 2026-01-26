@@ -201,42 +201,80 @@ def handle_numerology(body):
 
 # --- TAROT ---
 def handle_tarot(body):
+    # 1. Lấy dữ liệu đầu vào
+    feature_type = body.get('feature_type', 'question')
     data = body.get('data', {})
     cards_input = data.get('cards_drawn', [])
+    user_context = body.get('user_context', {})
     user_query = data.get('question', '')
-    if not cards_input: return "Vui lòng chọn lá bài."
+    
+    if not cards_input:
+        return "Vui lòng chọn lá bài."
 
-    # KHÔI PHỤC: Logic nhận diện topic chi tiết
+    # 2. Nhận diện chủ đề (Intent Topic) - Đã mở rộng từ khóa
     intent_topic = "general"
-    q_low = user_query.lower()
-    if any(k in q_low for k in ['yêu', 'tình', 'crush']): intent_topic = "love"
-    elif any(k in q_low for k in ['việc', 'làm', 'nghề', 'lương']): intent_topic = "work"
-    elif any(k in q_low for k in ['khoẻ', 'bệnh', 'thuốc']): intent_topic = "health"
+    if user_query:
+        q_low = user_query.lower()
+        if any(k in q_low for k in ['yêu', 'tình', 'crush', 'cưới', 'hẹn hò', 'người yêu']): 
+            intent_topic = "love"
+        elif any(k in q_low for k in ['việc', 'làm', 'nghề', 'lương', 'công ty', 'sự nghiệp']): 
+            intent_topic = "work"
+        elif any(k in q_low for k in ['khoẻ', 'bệnh', 'thuốc', 'sức khoẻ']): 
+            intent_topic = "health"
+        elif any(k in q_low for k in ['bạn', 'gia đình', 'quan hệ', 'đồng nghiệp']): 
+            intent_topic = "relationship"
 
-    pos_map = {"past": "Quá khứ", "present": "Hiện tại", "future": "Tương lai"}
+    # 3. Ánh xạ vị trí lá bài
+    pos_map = {
+        "past": "Quá khứ / Nguyên nhân", 
+        "present": "Hiện tại / Diễn biến", 
+        "future": "Tương lai / Kết quả"
+    }
+    
     context_parts = [f"Chủ đề: {intent_topic.upper()}", f"Câu hỏi: {user_query}"]
 
+    # 4. Xử lý logic lá bài và RAG (Cập nhật cơ chế Backup)
     for card in cards_input:
-        name = card.get('card_name', '').title()
+        # Chuẩn hóa tên lá bài (ví dụ: "the fool" -> "The Fool")
+        raw_name = card.get('card_name', '').strip()
+        name = raw_name.title() 
+        
         is_up = card.get('is_upright', True)
         pos = card.get('position')
         
+        # Lấy dữ liệu từ DynamoDB
         card_full_data = get_db_item('tarot_card', name)
+        
         suffix = "upright" if is_up else "reversed"
-        meaning = card_full_data.get(f"{intent_topic}_{suffix}") or card_full_data.get(f"general_{suffix}")
         
-        context_parts.append(f"- [{pos_map.get(pos, 'Vị trí')}] {name} ({'Xuôi' if is_up else 'Ngược'}): {meaning}")
+        # Chiến thuật lấy nội dung: Ưu tiên chủ đề cụ thể -> Dự phòng chủ đề chung -> Mặc định
+        meaning = (card_full_data.get(f"{intent_topic}_{suffix}") or 
+                   card_full_data.get(f"general_{suffix}") or 
+                   "Không có dữ liệu chi tiết cho lá bài này.")
         
-    prompt = get_tarot_prompt(body.get('feature_type','question'), "\n".join(context_parts), user_query, body.get('user_context',{}), intent_topic)
+        orientation = "Xuôi" if is_up else "Ngược"
+        pos_label = f"[{pos_map.get(pos, 'Vị trí')}]"
+        
+        context_parts.append(f"- {pos_label} {name} ({orientation}): {meaning}")
+        
+    # 5. Gọi AI và Log kết quả (Giữ nguyên phần đếm token của bản cũ)
+    prompt = get_tarot_prompt(feature_type, "\n".join(context_parts), user_query, user_context, intent_topic)
     ans, in_t, out_t = call_bedrock_llm(prompt, 0.7)
 
-    # Log với input/output tokens riêng biệt
+    # Log vào DynamoDB (Giữ nguyên logic của bản cũ)
     try:
         table_tarot_log.put_item(Item={
-            "userId": data.get("userId", "anon"), "timestamp": datetime.utcnow().isoformat(),
-            "question": user_query, "answer": ans, "input_tokens": in_t, "output_tokens": out_t, "domain": "tarot"
+            "userId": data.get("userId", "anon"), 
+            "timestamp": datetime.utcnow().isoformat(),
+            "question": user_query, 
+            "answer": ans, 
+            "input_tokens": in_t, 
+            "output_tokens": out_t, 
+            "domain": "tarot"
         })
-    except: pass
+    except Exception as e:
+        print(f"Log Error: {e}")
+        
     return ans
 
 # --- TỬ VI (HOROSCOPE) ---
