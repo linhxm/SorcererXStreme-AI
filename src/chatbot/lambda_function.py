@@ -231,7 +231,7 @@ def lambda_handler(event, context):
         "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
         "body": json.dumps({
             "sessionId": session_id, 
-            "reply": reply,
+            "data": reply,
             "usage": {
                 "inputTokens": in_tokens,
                 "outputTokens": out_tokens
