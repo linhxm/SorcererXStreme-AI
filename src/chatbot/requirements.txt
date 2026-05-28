@@ -1,1 +1,2 @@
 pinecone
+typing_extensions
